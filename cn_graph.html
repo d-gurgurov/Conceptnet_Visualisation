@@ -83,6 +83,18 @@
         #backButton {
             margin-bottom: 20px;
         }
+        .tooltip {
+        position: absolute;
+        background-color: white;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 5px;
+        font-size: 14px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
     </style>
     <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
@@ -16986,6 +16998,10 @@ function createOverviewGraph() {
 
     const container = svg.append("g");
 
+    const tooltip = d3.select("body").append("div")
+        .attr("class", "tooltip")
+        .style("opacity", 0);
+
     const nodes = Object.entries(languageData).map(([lang, data]) => ({
         id: lang,
         numTriples: data.num_triples
@@ -17010,10 +17026,32 @@ function createOverviewGraph() {
         .attr("r", d => Math.sqrt(d.numTriples) / 2)
         .attr("fill", "#69b3a2");
 
-    node.append("text")
-        .text(d => d.id)
-        .attr('x', 6)
-        .attr('y', 3);
+    // node.append("text")
+    //    .text(d => d.id)
+    //    .attr('x', 6)
+    //    .attr('y', 3);
+
+    node.on("mouseover", function(event, d) {
+        d3.select(this).select("circle")
+            .attr("fill", "#ff5722");
+        
+        // Show tooltip with full language name
+    tooltip.transition()
+            .duration(200)
+            .style("opacity", .9);
+    tooltip.html(getFullLanguageName(d.id))
+            .style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY - 28) + "px");
+    })
+    .on("mouseout", function(event, d) {
+        d3.select(this).select("circle")
+            .attr("fill", "#69b3a2");
+        
+        // Hide tooltip
+        tooltip.transition()
+            .duration(500)
+            .style("opacity", 0);
+    });
 
     simulation.on("tick", () => {
         node.attr("transform", d => `translate(${d.x},${d.y})`);
@@ -17086,6 +17124,318 @@ function createOverviewGraph() {
     // Apply the initial zoom transformation
     svg.call(zoom.transform, d3.zoomIdentity.translate(translateX, translateY).scale(scale));
 }
+
+
+function getFullLanguageName(langCode) {
+    const languageNames = {
+    "aa": "Afar",
+    "ab": "Abkhazian",
+    "abe": "Western Abenaki",
+    "adx": "Amdo Tibetan",
+    "ady": "Adyghe",
+    "ae": "Avestan",
+    "af": "Afrikaans",
+    "aii": "Assyrian Neo-Aramaic",
+    "ain": "Ainu",
+    "akk": "Akkadian",
+    "akz": "Alabama",
+    "alt": "Southern Altai",
+    "am": "Amharic",
+    "an": "Aragonese",
+    "ang": "Old English",
+    "ar": "Arabic",
+    "arc": "Aramaic",
+    "arn": "Mapuche",
+    "ast": "Asturian",
+    "av": "Avar",
+    "axm": "Middle Armenian",
+    "az": "Azerbaijani",
+    "ba": "Bashkir",
+    "bal": "Baluchi",
+    "be": "Belarusian",
+    "bg": "Bulgarian",
+    "bi": "Bislama",
+    "bm": "Bambara",
+    "bn": "Bengali",
+    "bo": "Tibetan",
+    "br": "Breton",
+    "ca": "Catalan",
+    "ccc": "Chamicuro",
+    "ce": "Chechen",
+    "ceb": "Cebuano",
+    "ch": "Chamorro",
+    "chk": "Chuukese",
+    "chl": "Cahuilla",
+    "cho": "Choctaw",
+    "chr": "Cherokee",
+    "cic": "Chickasaw",
+    "cim": "Cimbrian",
+    "cjs": "Shor",
+    "co": "Corsican",
+    "cop": "Coptic",
+    "crh": "Crimean Turkish",
+    "cs": "Czech",
+    "csb": "Kashubian",
+    "cu": "Church Slavic",
+    "cv": "Chuvash",
+    "cy": "Welsh",
+    "da": "Danish",
+    "dak": "Dakota",
+    "de": "German",
+    "dje": "Zarma",
+    "dlm": "Dalmatian",
+    "dsb": "Lower Sorbian",
+    "dua": "Duala",
+    "dum": "Middle Dutch",
+    "dv": "Divehi",
+    "ee": "Ewe",
+    "egl": "Emilian",
+    "egx": "Egyptian languages",
+    "egy": "Ancient Egyptian",
+    "el": "Greek",
+    "en": "English",
+    "enm": "Middle English",
+    "eo": "Esperanto",
+    "es": "Spanish",
+    "esu": "Central Yupik",
+    "et": "Estonian",
+    "eu": "Basque",
+    "fa": "Persian",
+    "ff": "Fula",
+    "fi": "Finnish",
+    "fil": "Filipino",
+    "fj": "Fijian",
+    "fo": "Faroese",
+    "fon": "Fon",
+    "fr": "French",
+    "frk": "Frankish",
+    "frm": "Middle French",
+    "fro": "Old French",
+    "frp": "Franco-Provençal",
+    "frr": "Northern Frisian",
+    "fur": "Friulian",
+    "fy": "Western Frisian",
+    "ga": "Irish",
+    "gag": "Gagauz",
+    "gd": "Scottish Gaelic",
+    "gl": "Galician",
+    "gmh": "Middle High German",
+    "gml": "Middle Low German",
+    "gn": "Guarani",
+    "goh": "Old High German",
+    "got": "Gothic",
+    "grc": "Ancient Greek",
+    "gsw": "Swiss German",
+    "gu": "Gujarati",
+    "gv": "Manx",
+    "ha": "Hausa",
+    "hak": "Hakka",
+    "haw": "Hawaiian",
+    "hbo": "Ancient Hebrew",
+    "he": "Hebrew",
+    "hi": "Hindi",
+    "hil": "Hiligaynon",
+    "hit": "Hittite",
+    "hke": "Hunde",
+    "hsb": "Upper Sorbian",
+    "ht": "Haitian Creole",
+    "hu": "Hungarian",
+    "hy": "Armenian",
+    "ia": "Interlingua",
+    "ie": "Interlingue",
+    "ii": "Yi",
+    "ilo": "Ilocano",
+    "io": "Ido",
+    "is": "Icelandic",
+    "ist": "Istriot",
+    "it": "Italian",
+    "iu": "Inuktitut",
+    "ja": "Japanese",
+    "jbo": "Lojban",
+    "jv": "Javanese",
+    "ka": "Georgian",
+    "kbd": "Kabardian",
+    "khb": "Tai Lü",
+    "ki": "Kikuyu",
+    "kim": "Tofa",
+    "kjh": "Khakas",
+    "kk": "Kazakh",
+    "kl": "Kalaallisut",
+    "km": "Khmer",
+    "kn": "Kannada",
+    "ko": "Korean",
+    "koy": "Koyukon",
+    "krc": "Karachay-Balkar",
+    "krl": "Karelian",
+    "ku": "Kurdish",
+    "kum": "Kumyk",
+    "kw": "Cornish",
+    "ky": "Kyrgyz",
+    "la": "Latin",
+    "lad": "Ladino",
+    "lb": "Luxembourgish",
+    "li": "Limburgish",
+    "lij": "Ligurian",
+    "liv": "Livonian",
+    "lkt": "Lakota",
+    "lld": "Ladin",
+    "lmo": "Lombard",
+    "ln": "Lingala",
+    "lo": "Lao",
+    "lt": "Lithuanian",
+    "ltg": "Latgalian",
+    "lv": "Latvian",
+    "lzz": "Laz",
+    "mch": "Maquiritari",
+    "mdf": "Moksha",
+    "mg": "Malagasy",
+    "mga": "Middle Irish",
+    "mh": "Marshallese",
+    "mi": "Maori",
+    "mk": "Macedonian",
+    "ml": "Malayalam",
+    "mn": "Mongolian",
+    "mr": "Marathi",
+    "ms": "Malay",
+    "mt": "Maltese",
+    "mul": "Multilingual",
+    "mwl": "Mirandese",
+    "my": "Burmese",
+    "myv": "Erzya",
+    "na": "Nauru",
+    "nah": "Nahuatl languages",
+    "nan": "Min Nan Chinese",
+    "nap": "Neapolitan",
+    "nci": "Classical Nahuatl",
+    "nds": "Low German",
+    "ne": "Nepali",
+    "nhn": "Central Nahuatl",
+    "nl": "Dutch",
+    "nmn": "!Xóõ",
+    "no": "Norwegian",
+    "nog": "Nogai",
+    "non": "Old Norse",
+    "nov": "Novial",
+    "nrf": "Jèrriais",
+    "nv": "Navajo",
+    "oc": "Occitan",
+    "odt": "Old Dutch",
+    "ofs": "Old Frisian",
+    "oge": "Old Georgian",
+    "oj": "Ojibwa",
+    "oma": "Omaha-Ponca",
+    "or": "Oriya",
+    "orv": "Old Russian",
+    "os": "Ossetic",
+    "osp": "Old Spanish",
+    "osx": "Old Saxon",
+    "ota": "Ottoman Turkish",
+    "pa": "Punjabi",
+    "pal": "Pahlavi",
+    "pap": "Papiamento",
+    "pcd": "Picard",
+    "peo": "Old Persian",
+    "pi": "Pali",
+    "pjt": "Pitjantjatjara",
+    "pl": "Polish",
+    "pms": "Piedmontese",
+    "ppl": "Pipil",
+    "prg": "Prussian",
+    "pro": "Old Provençal",
+    "ps": "Pashto",
+    "pt": "Portuguese",
+    "qu": "Quechua",
+    "qya": "Quenya",
+    "raj": "Rajasthani",
+    "rap": "Rapa Nui",
+    "rm": "Romansh",
+    "ro": "Romanian",
+    "roa-opt": "Old Portuguese",
+    "rom": "Romany",
+    "ru": "Russian",
+    "rue": "Rusyn",
+    "rup": "Aromanian",
+    "rw": "Kinyarwanda",
+    "sa": "Sanskrit",
+    "sah": "Sakha",
+    "sc": "Sardinian",
+    "scn": "Sicilian",
+    "sco": "Scots",
+    "sd": "Sindhi",
+    "se": "Northern Sami",
+    "ses": "Koyraboro Senni",
+    "sga": "Old Irish",
+    "sh": "Serbo-Croatian",
+    "shh": "Shoshoni",
+    "si": "Sinhala",
+    "sk": "Slovak",
+    "sl": "Slovenian",
+    "sm": "Samoan",
+    "smn": "Inari Sami",
+    "sms": "Skolt Sami",
+    "so": "Somali",
+    "sq": "Albanian",
+    "srn": "Sranan Tongo",
+    "st": "Sotho",
+    "stq": "Saterland Frisian",
+    "su": "Sundanese",
+    "sux": "Sumerian",
+    "sv": "Swedish",
+    "sw": "Swahili",
+    "swb": "Comorian",
+    "syc": "Classical Syriac",
+    "szl": "Silesian",
+    "ta": "Tamil",
+    "te": "Telugu",
+    "tet": "Tetum",
+    "tg": "Tajik",
+    "th": "Thai",
+    "ti": "Tigrinya",
+    "tk": "Turkmen",
+    "tpi": "Tok Pisin",
+    "tpw": "Tupi",
+    "tr": "Turkish",
+    "tt": "Tatar",
+    "twf": "Northern Tiwa",
+    "txb": "Tokharian B",
+    "ty": "Tahitian",
+    "tyv": "Tuvinian",
+    "udm": "Udmurt",
+    "ug": "Uyghur",
+    "uga": "Ugaritic",
+    "uk": "Ukrainian",
+    "ur": "Urdu",
+    "uz": "Uzbek",
+    "vec": "Venetian",
+    "vep": "Veps",
+    "vi": "Vietnamese",
+    "vo": "Volapük",
+    "vot": "Votic",
+    "wa": "Walloon",
+    "wae": "Walser",
+    "war": "Waray",
+    "wau": "Waurá",
+    "wo": "Wolof",
+    "wym": "Wymysorys",
+    "xcl": "Classical Armenian",
+    "xh": "Xhosa",
+    "xmf": "Mingrelian",
+    "xno": "Anglo-Norman",
+    "xpr": "Parthian",
+    "xto": "Tokharian A",
+    "xwo": "Oirat",
+    "yi": "Yiddish",
+    "yo": "Yoruba",
+    "yua": "Yucateco",
+    "za": "Zhuang",
+    "zdj": "Ngazidja Comorian",
+    "zh": "Chinese",
+    "zu": "Zulu",
+    "zza": "Zaza"
+};
+    return languageNames[langCode] || langCode;
+}
+
 
 function createPlots(langData, langName) {
     const plotsContainer = document.getElementById("plots");
