@@ -17574,19 +17574,24 @@ function createGraph(langData, langName) {
     }
 
     const simulation = d3.forceSimulation(graphData.nodes)
-        .force("link", d3.forceLink(graphData.links).id(d => d.id).distance(d => 320 + Math.log(d.value + 1) * 20))
-        .force("charge", d3.forceManyBody().strength(-300))
-        .force("x", d3.forceX().x(d => d.id === langName ? 150 : 600))
-        .force("y", d3.forceY().y(300))
-        .force("collide", d3.forceCollide().radius(60));
+        .force("link", d3.forceLink(graphData.links)
+            .id(d => d.id)
+            .distance(d => 400 + Math.log(d.value + 1) * 30) // Increase the base distance
+            .strength(0.1)) // Lower the link strength
+        .force("charge", d3.forceManyBody()
+            .strength(-2000)) // Increase repulsion strength to prevent nodes from clustering too tightly
+        .force("collide", d3.forceCollide()
+            .radius(70)) // Increase collide radius to space out nodes more
+        .force("x", d3.forceX().x(d => d.id === langName ? 150 : 600).strength(0.1)) // Reduce x-axis force strength
+        .force("y", d3.forceY().y(300).strength(0.1)); // Reduce y-axis force strength
 
-    const zoom = d3.zoom()
-        .scaleExtent([0.5, 5]) // Set zoom scale range
-        .on("zoom", (event) => {
-            svg.selectAll("g").attr("transform", event.transform);
-        });
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 5])
+            .on("zoom", (event) => {
+                svg.selectAll("g").attr("transform", event.transform);
+            });
 
-    svg.call(zoom);
+        svg.call(zoom);
 
     const link = svg.append("g")
         .attr("class", "links")
@@ -17687,7 +17692,7 @@ function createGraph(langData, langName) {
     const bboxHeight = nodeBounds.y2 - nodeBounds.y1;
 
     // Compute the initial scale and translation
-    const scale = Math.min(1100 / bboxWidth, 700 / bboxHeight) * 0.5; // Adjust scale factor as needed
+    const scale = Math.min(1100 / bboxWidth, 700 / bboxHeight) * 0.2; // Adjust scale factor as needed
     const translateX = (1100 - bboxWidth * scale) / 2 - nodeBounds.x1 * scale;
     const translateY = (700 - bboxHeight * scale) / 2 - nodeBounds.y1 * scale;
 
