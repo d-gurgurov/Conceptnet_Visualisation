@@ -27,12 +27,6 @@
             display: none;
             padding: 20px;
         }
-        svg {
-            width: 100%;
-            height: 100%;
-            border: 1px solid #ddd;
-            background-color: #fff;
-        }
         .node {
             cursor: pointer;
         }
@@ -52,20 +46,27 @@
         #plots {
             display: flex;
             flex-direction: column; /* Stack plots vertically */
-            overflow: auto; /* Allow both vertical and horizontal scrolling */
+            overflow: auto; /* Allow scrolling if content exceeds container size */
             padding: 20px; /* Add padding */
+        }
+        .plot {
+            margin: 10px 0; /* Add margin between plots */
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            width: 1000px; /* Fixed width */
+            height: 550px; /* Fixed height */
+        }
+
+        svg {
+            width: 100%; /* Make SVG responsive within the fixed width of its container */
+            height: 100%; /* Make SVG responsive within the fixed height of its container */
         }
         .plot-container {
             margin: 10px;
             padding: 10px;
             background-color: #fff;
             border: 1px solid #ddd;
-        }
-        .graph-container {
-            width: 100%;
-            height: 700px;  /* Adjust based on your layout */
-            overflow: hidden;
-            position: relative;
         }
         .bar {
             fill: steelblue;
@@ -109,7 +110,6 @@
                 <option value="">--Select a language--</option>
             </select>
             <div id="plots"></div>
-            <div id="graphs"></div>
         </div>
     </div>
 
@@ -17476,8 +17476,9 @@ function createPlots(langData, langName) {
     plotsContainer.appendChild(languageConnectionsDiv);
     createLanguageConnectionsPlot(languageConnectionsDiv, connections, langName, baseWidth, baseHeight, margin);
 
-    // Adjust the height of the container to fit all plots
-    plotsContainer.style.height = `${(baseHeight + margin.top + margin.bottom) * 5.5}px`; // Adjust for the new plot
+    // Adjust the height of the container to fit all plots dynamically
+    const numPlots = 3; // Update this if more plots are added
+    plotsContainer.style.height = `${plotHeight * numPlots}px`; // Adjust for the number of plots
 }
 
 
@@ -17571,53 +17572,58 @@ function createBarChart(container, data, title, baseWidth, baseHeight, margin) {
 
 
 function createLanguageConnectionsPlot(container, connections, langName, width, height, margin) {
-    const svg = d3.select(container)
-        .append("svg")
+    const svg = d3.select(container).append("svg")
         .attr("width", width + margin.left + margin.right)
         .attr("height", height + margin.top + margin.bottom)
         .append("g")
         .attr("transform", `translate(${margin.left},${margin.top})`);
 
     const maxExamples = d3.max(connections, d => d.examples);
+    const totalExamples = d3.sum(connections, d => d.examples);
 
-    // Main language as a fixed node
+    const mainLineBranchLength = 100; // Adjust as needed
+    const mainLineWidth = 30;
+
     const mainNode = {
         name: langName,
         x: 0,
         y: height / 2
     };
 
-    // Connected languages as nodes
     const nodes = connections.map((d, i) => ({
         name: d.language,
-        examples: d.examples, // Ensure examples are included
+        examples: d.examples,
         x: width,
-        y: (i + 1) * (height / (connections.length + 1))
+        y: (i + 0.5) * (height / connections.length),
     }));
 
-    // Add main language node
-    svg.append("circle")
-        .attr("cx", mainNode.x)
-        .attr("cy", mainNode.y)
-        .attr("r", 20)
-        .style("fill", "steelblue");
+    svg.append("line")
+        .attr("x1", mainNode.x)
+        .attr("y1", mainNode.y - mainLineWidth / 2)
+        .attr("x2", mainNode.x + mainLineBranchLength)
+        .attr("y2", mainNode.y - mainLineWidth / 2)
+        .attr("stroke-width", mainLineWidth)
+        .attr("stroke", "steelblue");
 
-    svg.append("text")
-        .attr("x", mainNode.x - 10)
-        .attr("y", mainNode.y - 25)
-        .text(langName)
-        .style("font-size", "12px");
+    svg.append("line")
+        .attr("x1", mainNode.x + mainLineBranchLength)
+        .attr("y1", mainNode.y - mainLineWidth / 2)
+        .attr("x2", mainNode.x + mainLineBranchLength)
+        .attr("y2", mainNode.y + mainLineWidth / 2)
+        .attr("stroke-width", mainLineWidth)
+        .attr("stroke", "steelblue");
 
-    // Add connected languages nodes
-    svg.selectAll("circle.connected")
+    svg.selectAll("line.connected")
         .data(nodes)
         .enter()
-        .append("circle")
+        .append("line")
         .attr("class", "connected")
-        .attr("cx", d => d.x)
-        .attr("cy", d => d.y)
-        .attr("r", 15)
-        .style("fill", "orange");
+        .attr("x1", d => mainNode.x + mainLineBranchLength)
+        .attr("y1", d => mainNode.y - (mainLineWidth / 2) + (d.examples / totalExamples) * mainLineWidth / 2)
+        .attr("x2", d => d.x)
+        .attr("y2", d => d.y)
+        .attr("stroke-width", d => (d.examples / maxExamples) * mainLineWidth)
+        .attr("stroke", "orange");
 
     svg.selectAll("text.connected")
         .data(nodes)
@@ -17625,21 +17631,30 @@ function createLanguageConnectionsPlot(container, connections, langName, width, 
         .append("text")
         .attr("class", "connected")
         .attr("x", d => d.x - 10)
-        .attr("y", d => d.y - 25)
+        .attr("y", d => d.y + 5)
         .text(d => d.name)
-        .style("font-size", "12px");
+        .style("font-size", "12px")
+        .style("fill", "#333");
 
-    // Add lines
-    svg.selectAll("line")
+    svg.selectAll("path.link")
         .data(nodes)
         .enter()
-        .append("line")
-        .attr("x1", mainNode.x)
-        .attr("y1", mainNode.y)
-        .attr("x2", d => d.x)
-        .attr("y2", d => d.y)
-        .attr("stroke-width", d => (d.examples / maxExamples) * 10)
-        .attr("stroke", "gray");
+        .append("path")
+        .attr("class", "link")
+        .attr("d", d => {
+            const midX = (mainNode.x + mainLineBranchLength + d.x) / 2;
+            return `M${mainNode.x + mainLineBranchLength},${mainNode.y} C${midX},${mainNode.y} ${midX},${d.y} ${d.x},${d.y}`;
+        })
+        .attr("stroke-width", d => (d.examples / maxExamples) * mainLineWidth)
+        .attr("stroke", "gray")
+        .attr("fill", "none")
+        .attr("opacity", 0.7);
+
+    svg.selectAll("line.connected")
+        .transition()
+        .duration(1000)
+        .attr("x1", d => mainNode.x + mainLineBranchLength)
+        .attr("y1", d => mainNode.y - (mainLineWidth / 2) + (d.examples / totalExamples) * mainLineWidth / 2);
 }
 
 
