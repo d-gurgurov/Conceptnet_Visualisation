@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Language Network Graphs</title>
+
     <style>
         body, html {
             font-family: Arial, sans-serif;
@@ -95,10 +96,8 @@
         opacity: 0;
         transition: opacity 0.3s;
     }
-
     </style>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="https://d3js.org/d3-sankey.v0.7.1.min.js"></script>
+
 </head>
 
 <body>
@@ -120,6 +119,10 @@
             <div id="plots"></div>
         </div>
     </div>
+
+<!-- Import D3 and D3 Sankey modules -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://unpkg.com/d3-sankey@0"></script>
 
 <script>
 
@@ -17572,89 +17575,131 @@ function createBarChart(container, data, title, baseWidth, baseHeight, margin) {
         .text(title);
 }
 
-// Function to generate Sankey data
+
 function generateSankeyData() {
             const nodes = [];
             const links = [];
 
-            const languages = Object.keys(languageData);
+            const nodeMap = new Map();
+            let index = 0;
 
-            languages.forEach((lang, index) => {
-                nodes.push({ name: lang, type: 'source' });
-                const connectedLangs = languageData[lang].connected_languages;
-                
-                for (const [connectedLang, count] of Object.entries(connectedLangs)) {
-                    if (connectedLang !== lang) {
-                        const targetIndex = languages.indexOf(connectedLang);
-                        if (targetIndex === -1) {
-                            nodes.push({ name: connectedLang, type: 'target' });
-                        }
-                        links.push({ source: lang, target: connectedLang, value: count });
-                    }
+            // Create nodes
+            Object.keys(languageData).forEach(lang => {
+                if (!nodeMap.has(lang)) {
+                    nodeMap.set(lang, index++);
+                    nodes.push({ id: lang });
                 }
             });
 
-            console.log('Nodes:', nodes);  // Debugging
-            console.log('Links:', links);  // Debugging
+            // Create links and filter out self-links
+            Object.keys(languageData).forEach(sourceLang => {
+                const sourceIndex = nodeMap.get(sourceLang);
+
+                Object.entries(languageData[sourceLang].connected_languages).forEach(([targetLang, value]) => {
+                    if (sourceLang !== targetLang) {
+                        let targetIndex;
+                        if (nodeMap.has(targetLang)) {
+                            targetIndex = nodeMap.get(targetLang);
+                        } else {
+                            targetIndex = index++;
+                            nodeMap.set(targetLang, targetIndex);
+                            nodes.push({ id: targetLang });
+                        }
+
+                        // Add link
+                        links.push({
+                            source: sourceIndex,
+                            target: targetIndex,
+                            value: value
+                        });
+                    }
+                });
+            });
+
             return { nodes, links };
         }
 
-// Function to draw Sankey Diagram
+        
 function drawSankeyDiagram() {
-    // Clear previous content
-    d3.select("#sankeyGraph").select("svg").remove();
+            // Clear previous content
+            d3.select("#sankeyGraph").select("svg").remove();
 
-    const { nodes, links } = generateSankeyData();
+            const { nodes, links } = generateSankeyData();
 
-    const width = 1000;
-    const height = 600;
+            // Check data validity
+            console.log("Nodes:", nodes);
+            console.log("Links:", links);
 
-    const svg = d3.select("#sankeyGraph").append("svg")
-        .attr("width", width)
-        .attr("height", height);
+            const width = 1000;
+            const height = 600;
 
-    const sankey = d3.sankey()
-        .nodeWidth(20)
-        .nodePadding(20)
-        .extent([[1, 1], [width - 1, height - 6]]);
+            const svg = d3.select("#sankeyGraph").append("svg")
+                .attr("width", width)
+                .attr("height", height);
 
-    const { nodes: sankeyNodes, links: sankeyLinks } = sankey({ nodes, links });
+            const sankey = d3.sankey()
+                .nodeWidth(20)
+                .nodePadding(20)
+                .extent([[1, 1], [width - 1, height - 6]]);
 
-    svg.append("g")
-        .selectAll("rect")
-        .data(sankeyNodes)
-        .enter().append("rect")
-        .attr("x", d => d.x0)
-        .attr("y", d => d.y0)
-        .attr("width", d => d.x1 - d.x0)
-        .attr("height", d => d.y1 - d.y0)
-        .style("fill", "#00f")
-        .style("stroke", "#000")
-        .on("mouseover", function(event, d) {
-            d3.selectAll("path").style("opacity", l => l.source === d || l.target === d ? 1 : 0.1);
-        })
-        .on("mouseout", function() {
-            d3.selectAll("path").style("opacity", 1);
-        });
+            try {
+                // Generate the Sankey diagram data
+                const { nodes: sankeyNodes, links: sankeyLinks } = sankey({ nodes, links });
 
-    svg.append("g")
-        .selectAll("path")
-        .data(sankeyLinks)
-        .enter().append("path")
-        .attr("d", d => `
-            M${d.source.x1},${d.source.y1}
-            L${d.target.x0},${d.target.y0}
-            L${d.target.x1},${d.target.y1}
-            L${d.source.x0},${d.source.y0}
-            Z
-        `)
-        .style("fill", "none")
-        .style("stroke", "#000")
-        .style("stroke-width", d => Math.max(1, d.width))
-        .style("opacity", 0.5);
-}
+                // Add node rectangles
+                svg.append("g")
+                    .selectAll("rect")
+                    .data(sankeyNodes)
+                    .enter().append("rect")
+                    .attr("x", d => d.x0)
+                    .attr("y", d => d.y0)
+                    .attr("width", d => d.x1 - d.x0)
+                    .attr("height", d => d.y1 - d.y0)
+                    .style("fill", "#00f")
+                    .style("stroke", "#000")
+                    .on("mouseover", function(event, d) {
+                        d3.selectAll("path").style("opacity", l => l.source === d || l.target === d ? 1 : 0.1);
+                    })
+                    .on("mouseout", function() {
+                        d3.selectAll("path").style("opacity", 1);
+                    });
 
-// Toggle between overview and Sankey diagram
+                // Add link paths
+                svg.append("g")
+                    .selectAll("path")
+                    .data(sankeyLinks)
+                    .enter().append("path")
+                    .attr("d", d => `
+                        M${d.source.x1},${d.source.y1}
+                        L${d.target.x0},${d.target.y0}
+                        L${d.target.x1},${d.target.y1}
+                        L${d.source.x0},${d.source.y0}
+                        Z
+                    `)
+                    .style("fill", "none")
+                    .style("stroke", "#000")
+                    .style("stroke-width", d => Math.max(1, d.width))
+                    .style("opacity", 0.5);
+
+                // Add node labels with asterisks for right-side nodes
+                svg.append("g")
+                    .selectAll("text")
+                    .data(sankeyNodes)
+                    .enter().append("text")
+                    .attr("x", d => d.x0 + (d.x1 - d.x0) / 2)
+                    .attr("y", d => (d.y0 + d.y1) / 2)
+                    .attr("text-anchor", "middle")
+                    .attr("dy", "0.35em")
+                    .text(d => `${d.id}${d.x1 > width / 2 ? '*' : ''}`)
+                    .style("font-size", "12px")
+                    .style("fill", "#000");
+
+            } catch (error) {
+                console.error('Error drawing Sankey diagram:', error);
+            }
+        }      
+
+
 d3.select("#toggleButton").on("click", function() {
             const overviewVisible = d3.select("#overviewGraph").style("display") !== "none";
             if (overviewVisible) {
