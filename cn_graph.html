@@ -54,7 +54,6 @@
             flex-direction: column; /* Stack plots vertically */
             overflow: auto; /* Allow both vertical and horizontal scrolling */
             padding: 20px; /* Add padding */
-            box-sizing: border-box; /* Include padding in the total width and height */
         }
         .plot-container {
             margin: 10px;
@@ -16984,6 +16983,12 @@ const languageData = {
 };
 
 
+const connections = Object.entries(languageData.ab.connected_languages).map(([language, examples]) => ({
+    language,
+    examples
+}));
+
+
 function createOverviewGraph() {
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -17453,19 +17458,36 @@ function createPlots(langData, langName) {
     triplesDiv.textContent = `Number of Triples: ${langData.num_triples}`;
     plotsContainer.appendChild(triplesDiv);
 
-    // Create and append the plots
-    createBarChart(plotsContainer, langData.unique_relationships, "", baseWidth, baseHeight, margin);
-    createBarChart(plotsContainer, langData.connected_languages, "", baseWidth, baseHeight, margin);
+    // Container for the first bar chart
+    const uniqueRelationshipsDiv = document.createElement('div');
+    uniqueRelationshipsDiv.className = 'plot';
+    plotsContainer.appendChild(uniqueRelationshipsDiv);
+    createBarChart(uniqueRelationshipsDiv, langData.unique_relationships, "", baseWidth, baseHeight, margin);
+
+    // Container for the second bar chart
+    const connectedLanguagesDiv = document.createElement('div');
+    connectedLanguagesDiv.className = 'plot';
+    plotsContainer.appendChild(connectedLanguagesDiv);
+    createBarChart(connectedLanguagesDiv, langData.connected_languages, "", baseWidth, baseHeight, margin);
+
+    // Container for the new language connections plot
+    const languageConnectionsDiv = document.createElement('div');
+    languageConnectionsDiv.className = 'plot';
+    plotsContainer.appendChild(languageConnectionsDiv);
+    createLanguageConnectionsPlot(languageConnectionsDiv, connections, langName, baseWidth, baseHeight, margin);
 
     // Adjust the height of the container to fit all plots
-    plotsContainer.style.height = `${(baseHeight + margin.top + margin.bottom) * 2.2}px`; // Ensure space for all plots
+    plotsContainer.style.height = `${(baseHeight + margin.top + margin.bottom) * 5.5}px`; // Adjust for the new plot
 }
 
 
 function createBarChart(container, data, title, baseWidth, baseHeight, margin) {
     // Convert data to an array of objects and sort it by value in descending order
     const dataEntries = Object.entries(data)
-        .map(([key, value]) => ({ label: key, value }))
+        .map(([key, value]) => ({ 
+                label: key.startsWith('/r/') ? key.slice(3) : key, // Remove '/r/' prefix if present
+                value 
+            }))
         .sort((a, b) => b.value - a.value); // Sort by value in descending order
 
     // Compute the width based on the number of bars
@@ -17487,6 +17509,17 @@ function createBarChart(container, data, title, baseWidth, baseHeight, margin) {
         .domain([0, d3.max(dataEntries, d => d.value)]).nice()
         .range([height, 0]);
 
+   // Create a tooltip div
+   const tooltip = d3.select(container).append("div")
+        .attr("class", "tooltip")
+        .style("opacity", 0)
+        .style("position", "absolute")
+        .style("background-color", "white")
+        .style("border", "solid")
+        .style("border-width", "1px")
+        .style("border-radius", "5px")
+        .style("padding", "10px");
+
     // Create bars with interactive tooltips
     svg.selectAll(".bar")
         .data(dataEntries)
@@ -17499,26 +17532,18 @@ function createBarChart(container, data, title, baseWidth, baseHeight, margin) {
         .attr("fill", "steelblue")
         .on("mouseover", function(event, d) {
             d3.select(this).attr("fill", "orange");
-            const tooltip = d3.select(container).append("div")
-                .attr("class", "tooltip")
-                .style("position", "absolute")
-                .style("background-color", "#fff")
-                .style("padding", "5px")
-                .style("border", "1px solid #ddd")
-                .style("border-radius", "5px")
-                .style("pointer-events", "none")
-                .style("left", `${event.pageX + 10}px`)
-                .style("top", `${event.pageY - 30}px`)
-                .text(`${d.label}: ${d.value}`);
-        })
-        .on("mousemove", function(event) {
-            d3.select(container).select(".tooltip")
-                .style("left", `${event.pageX + 10}px`)
-                .style("top", `${event.pageY - 30}px`);
+            tooltip.transition()
+                .duration(200)
+                .style("opacity", .9);
+            tooltip.html(`${d.label}: ${d.value}`)
+                .style("left", (event.pageX) + "px")
+                .style("top", (event.pageY - 28) + "px");
         })
         .on("mouseout", function() {
             d3.select(this).attr("fill", "steelblue");
-            d3.select(container).select(".tooltip").remove();
+            tooltip.transition()
+                .duration(500)
+                .style("opacity", 0);
         });
 
     // Add axes with transitions
@@ -17545,164 +17570,76 @@ function createBarChart(container, data, title, baseWidth, baseHeight, margin) {
 }
 
 
-function createGraph(langData, langName) {
-    const container = document.createElement("div");
-    container.className = "graph-container";
-    container.innerHTML = `<h2>Interactive Graph for ${langName}</h2>`;
+function createLanguageConnectionsPlot(container, connections, langName, width, height, margin) {
+    const svg = d3.select(container)
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
 
-    const svg = d3.select(container).append("svg")
-        .attr("width", 1100)
-        .attr("height", 700);
+    const maxExamples = d3.max(connections, d => d.examples);
 
-    const graphData = {
-        nodes: [],
-        links: []
+    // Main language as a fixed node
+    const mainNode = {
+        name: langName,
+        x: 0,
+        y: height / 2
     };
 
-    graphData.nodes.push({ id: langName, x: 150, y: 300 });
+    // Connected languages as nodes
+    const nodes = connections.map((d, i) => ({
+        name: d.language,
+        examples: d.examples, // Ensure examples are included
+        x: width,
+        y: (i + 1) * (height / (connections.length + 1))
+    }));
 
-    let i = 0;
-    for (const [targetLang, count] of Object.entries(langData.connected_languages)) {
-        if (!graphData.nodes.some(node => node.id === targetLang)) {
-            graphData.nodes.push({ id: targetLang, x: 600, y: 300 + (i * 60) });
-            i++;
-        }
+    // Add main language node
+    svg.append("circle")
+        .attr("cx", mainNode.x)
+        .attr("cy", mainNode.y)
+        .attr("r", 20)
+        .style("fill", "steelblue");
 
-        graphData.links.push({ source: langName, target: targetLang, value: count });
-    }
+    svg.append("text")
+        .attr("x", mainNode.x - 10)
+        .attr("y", mainNode.y - 25)
+        .text(langName)
+        .style("font-size", "12px");
 
-    if (langData.connected_languages[langName]) {
-        graphData.nodes.push({ id: `${langName}*`, x: 150, y: 370 });
-        graphData.links.push({ source: langName, target: `${langName}*`, value: langData.connected_languages[langName] });
-    }
+    // Add connected languages nodes
+    svg.selectAll("circle.connected")
+        .data(nodes)
+        .enter()
+        .append("circle")
+        .attr("class", "connected")
+        .attr("cx", d => d.x)
+        .attr("cy", d => d.y)
+        .attr("r", 15)
+        .style("fill", "orange");
 
-    const simulation = d3.forceSimulation(graphData.nodes)
-        .force("link", d3.forceLink(graphData.links)
-            .id(d => d.id)
-            .distance(d => 400 + Math.log(d.value + 1) * 30) // Increase the base distance
-            .strength(0.1)) // Lower the link strength
-        .force("charge", d3.forceManyBody()
-            .strength(-2000)) // Increase repulsion strength to prevent nodes from clustering too tightly
-        .force("collide", d3.forceCollide()
-            .radius(70)) // Increase collide radius to space out nodes more
-        .force("x", d3.forceX().x(d => d.id === langName ? 150 : 600).strength(0.1)) // Reduce x-axis force strength
-        .force("y", d3.forceY().y(300).strength(0.1)); // Reduce y-axis force strength
+    svg.selectAll("text.connected")
+        .data(nodes)
+        .enter()
+        .append("text")
+        .attr("class", "connected")
+        .attr("x", d => d.x - 10)
+        .attr("y", d => d.y - 25)
+        .text(d => d.name)
+        .style("font-size", "12px");
 
-        const zoom = d3.zoom()
-            .scaleExtent([0.1, 5])
-            .on("zoom", (event) => {
-                svg.selectAll("g").attr("transform", event.transform);
-            });
-
-        svg.call(zoom);
-
-    const link = svg.append("g")
-        .attr("class", "links")
-        .selectAll("path")
-        .data(graphData.links)
-        .enter().append("path")
-        .attr("stroke", "#666")
-        .attr("stroke-width", d => Math.sqrt(d.value) * 1)
-        .attr("fill", "none")
-        .attr("stroke-linejoin", "round")
-        .attr("stroke-linecap", "round");
-
-    const node = svg.append("g")
-        .attr("class", "nodes")
-        .selectAll("circle")
-        .data(graphData.nodes)
-        .enter().append("circle")
-        .attr("r", 10)
-        .attr("fill", "#1f77b4")
-        .attr("stroke", "#fff")
-        .attr("stroke-width", 2)
-        .call(drag(simulation));
-
-    const label = svg.append("g")
-        .attr("class", "labels")
-        .selectAll("text")
-        .data(graphData.nodes)
-        .enter().append("text")
-        .attr("dx", 15)
-        .attr("dy", ".35em")
-        .text(d => d.id);
-
-    simulation.on("tick", () => {
-        link
-            .attr("d", d => {
-                const dx = d.target.x - d.source.x;
-                const dy = d.target.y - d.source.y;
-                const dr = Math.sqrt(dx * dx + dy * dy);
-                const drAdjusted = dr + 20;
-                return `M${d.source.x},${d.source.y}A${drAdjusted},${drAdjusted} 0 0,1 ${d.target.x},${d.target.y}`;
-            });
-
-        node
-            .attr("cx", d => d.x)
-            .attr("cy", d => d.y);
-
-        label
-            .attr("x", d => d.x)
-            .attr("y", d => d.y);
-    });
-
-    function drag(simulation) {
-        function dragstarted(event, d) {
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            d.fx = d.x;
-            d.fy = d.y;
-        }
-
-        function dragged(event, d) {
-            d.fx = event.x;
-            d.fy = event.y;
-        }
-
-        function dragended(event, d) {
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
-        }
-
-        return d3.drag()
-            .on("start", dragstarted)
-            .on("drag", dragged)
-            .on("end", dragended);
-    }
-
-    node.on("mouseover", function(event, d) {
-        link.style("stroke-opacity", o => (o.source === d || o.target === d) ? 1 : 0.2);
-        node.style("fill-opacity", o => (o === d || o === o.source || o === o.target) ? 1 : 0.6);
-    });
-
-    node.on("mouseout", function() {
-        link.style("stroke-opacity", 0.6);
-        node.style("fill-opacity", 1);
-    });
-
-    // Calculate the bounding box of the nodes
-    const nodeBounds = graphData.nodes.reduce((acc, node) => {
-        const radius = 10; // Fixed radius since we use constant `r` for circles
-        return {
-            x1: Math.min(acc.x1, node.x - radius),
-            y1: Math.min(acc.y1, node.y - radius),
-            x2: Math.max(acc.x2, node.x + radius),
-            y2: Math.max(acc.y2, node.y + radius)
-        };
-    }, { x1: Infinity, y1: Infinity, x2: -Infinity, y2: -Infinity });
-
-    const bboxWidth = nodeBounds.x2 - nodeBounds.x1;
-    const bboxHeight = nodeBounds.y2 - nodeBounds.y1;
-
-    // Compute the initial scale and translation
-    const scale = Math.min(1100 / bboxWidth, 700 / bboxHeight) * 0.2; // Adjust scale factor as needed
-    const translateX = (1100 - bboxWidth * scale) / 2 - nodeBounds.x1 * scale;
-    const translateY = (700 - bboxHeight * scale) / 2 - nodeBounds.y1 * scale;
-
-    // Apply the initial zoom transformation
-    svg.call(zoom.transform, d3.zoomIdentity.translate(translateX, translateY).scale(scale));
-
-    return container;
+    // Add lines
+    svg.selectAll("line")
+        .data(nodes)
+        .enter()
+        .append("line")
+        .attr("x1", mainNode.x)
+        .attr("y1", mainNode.y)
+        .attr("x2", d => d.x)
+        .attr("y2", d => d.y)
+        .attr("stroke-width", d => (d.examples / maxExamples) * 10)
+        .attr("stroke", "gray");
 }
 
 
@@ -17720,7 +17657,6 @@ function showLanguageSpecificData(selectedLang) {
 }
 
 
-// Populate the language dropdown
 function populateLanguageDropdown() {
     const languageSelect = document.getElementById("languageSelect");
     
@@ -17742,11 +17678,9 @@ function populateLanguageDropdown() {
     });
 }
 
-// Call the function to populate the dropdown
+
 populateLanguageDropdown();
 
-
-// Initialize the page
 createOverviewGraph();
 
 
@@ -17754,6 +17688,11 @@ createOverviewGraph();
 document.getElementById("backButton").addEventListener("click", () => {
     d3.select("#overviewGraph").style("display", "block");
     d3.select("#languageSpecificContent").style("display", "none");
+});
+
+// Add event listener for the dropdown
+document.getElementById("languageSelect").addEventListener("change", event => {
+    showLanguageSpecificData(event.target.value);
 });
 
 </script>
