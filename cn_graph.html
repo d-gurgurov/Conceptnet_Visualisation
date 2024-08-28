@@ -23,6 +23,9 @@
             flex-grow: 1;
             width: 100%;
         }
+        #sankeyGraph {
+            display: none; /* Initially hide Sankey Graph */
+        }
         #languageSpecificContent {
             display: none;
             padding: 20px;
@@ -30,18 +33,16 @@
         .node {
             cursor: pointer;
         }
-        .node circle {
-            stroke: #333;
-            stroke-width: 1.5px;
-        }
-        .node text {
-            font-size: 12px;
-            fill: #333;
+        .node:hover {
+            stroke: #000;
+            stroke-width: 2px;
         }
         .link {
             fill: none;
-            stroke: #999;
-            stroke-opacity: 0.6;
+            stroke-opacity: 0.5;
+        }
+        .link:hover {
+            stroke-width: 2px;
         }
         #plots {
             display: flex;
@@ -97,14 +98,21 @@
 
     </style>
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://d3js.org/d3-sankey.v0.7.1.min.js"></script>
 </head>
 
 <body>
     <div id="mainContainer">
-        <div id="overviewGraph"></div>
+        <button id="toggleButton">Switch</button>
+        <div id="overviewGraph">
+            <!-- Overview Graph content goes here -->
+        </div>
+        <div id="sankeyGraph">
+            <!-- Sankey Diagram will be rendered here -->
+        </div>
         <div id="languageSpecificContent">
             <button id="backButton">Back to Overview</button>
-            <h1>Language Network Graphs</h1>
+            <h1>Language-Specific Plots</h1>
             <label for="languageSelect">Choose a language:</label>
             <select id="languageSelect">
                 <option value="">--Select a language--</option>
@@ -17470,14 +17478,8 @@ function createPlots(langData, langName) {
     plotsContainer.appendChild(connectedLanguagesDiv);
     createBarChart(connectedLanguagesDiv, langData.connected_languages, "", baseWidth, baseHeight, margin);
 
-    // Container for the new language connections plot
-    const languageConnectionsDiv = document.createElement('div');
-    languageConnectionsDiv.className = 'plot';
-    plotsContainer.appendChild(languageConnectionsDiv);
-    createLanguageConnectionsPlot(languageConnectionsDiv, connections, langName, baseWidth, baseHeight, margin);
-
     // Adjust the height of the container to fit all plots dynamically
-    const numPlots = 3; // Update this if more plots are added
+    const numPlots = 2; // Update this if more plots are added
     plotsContainer.style.height = `${plotHeight * numPlots}px`; // Adjust for the number of plots
 }
 
@@ -17570,92 +17572,102 @@ function createBarChart(container, data, title, baseWidth, baseHeight, margin) {
         .text(title);
 }
 
+// Function to generate Sankey data
+function generateSankeyData() {
+            const nodes = [];
+            const links = [];
 
-function createLanguageConnectionsPlot(container, connections, langName, width, height, margin) {
-    const svg = d3.select(container).append("svg")
-        .attr("width", width + margin.left + margin.right)
-        .attr("height", height + margin.top + margin.bottom)
-        .append("g")
-        .attr("transform", `translate(${margin.left},${margin.top})`);
+            const languages = Object.keys(languageData);
 
-    const maxExamples = d3.max(connections, d => d.examples);
-    const totalExamples = d3.sum(connections, d => d.examples);
+            languages.forEach((lang, index) => {
+                nodes.push({ name: lang, type: 'source' });
+                const connectedLangs = languageData[lang].connected_languages;
+                
+                for (const [connectedLang, count] of Object.entries(connectedLangs)) {
+                    if (connectedLang !== lang) {
+                        const targetIndex = languages.indexOf(connectedLang);
+                        if (targetIndex === -1) {
+                            nodes.push({ name: connectedLang, type: 'target' });
+                        }
+                        links.push({ source: lang, target: connectedLang, value: count });
+                    }
+                }
+            });
 
-    const mainLineBranchLength = 100; // Adjust as needed
-    const mainLineWidth = 30;
+            console.log('Nodes:', nodes);  // Debugging
+            console.log('Links:', links);  // Debugging
+            return { nodes, links };
+        }
 
-    const mainNode = {
-        name: langName,
-        x: 0,
-        y: height / 2
-    };
+// Function to draw Sankey Diagram
+function drawSankeyDiagram() {
+    // Clear previous content
+    d3.select("#sankeyGraph").select("svg").remove();
 
-    const nodes = connections.map((d, i) => ({
-        name: d.language,
-        examples: d.examples,
-        x: width,
-        y: (i + 0.5) * (height / connections.length),
-    }));
+    const { nodes, links } = generateSankeyData();
 
-    svg.append("line")
-        .attr("x1", mainNode.x)
-        .attr("y1", mainNode.y - mainLineWidth / 2)
-        .attr("x2", mainNode.x + mainLineBranchLength)
-        .attr("y2", mainNode.y - mainLineWidth / 2)
-        .attr("stroke-width", mainLineWidth)
-        .attr("stroke", "steelblue");
+    const width = 1000;
+    const height = 600;
 
-    svg.append("line")
-        .attr("x1", mainNode.x + mainLineBranchLength)
-        .attr("y1", mainNode.y - mainLineWidth / 2)
-        .attr("x2", mainNode.x + mainLineBranchLength)
-        .attr("y2", mainNode.y + mainLineWidth / 2)
-        .attr("stroke-width", mainLineWidth)
-        .attr("stroke", "steelblue");
+    const svg = d3.select("#sankeyGraph").append("svg")
+        .attr("width", width)
+        .attr("height", height);
 
-    svg.selectAll("line.connected")
-        .data(nodes)
-        .enter()
-        .append("line")
-        .attr("class", "connected")
-        .attr("x1", d => mainNode.x + mainLineBranchLength)
-        .attr("y1", d => mainNode.y - (mainLineWidth / 2) + (d.examples / totalExamples) * mainLineWidth / 2)
-        .attr("x2", d => d.x)
-        .attr("y2", d => d.y)
-        .attr("stroke-width", d => (d.examples / maxExamples) * mainLineWidth)
-        .attr("stroke", "orange");
+    const sankey = d3.sankey()
+        .nodeWidth(20)
+        .nodePadding(20)
+        .extent([[1, 1], [width - 1, height - 6]]);
 
-    svg.selectAll("text.connected")
-        .data(nodes)
-        .enter()
-        .append("text")
-        .attr("class", "connected")
-        .attr("x", d => d.x - 10)
-        .attr("y", d => d.y + 5)
-        .text(d => d.name)
-        .style("font-size", "12px")
-        .style("fill", "#333");
+    const { nodes: sankeyNodes, links: sankeyLinks } = sankey({ nodes, links });
 
-    svg.selectAll("path.link")
-        .data(nodes)
-        .enter()
-        .append("path")
-        .attr("class", "link")
-        .attr("d", d => {
-            const midX = (mainNode.x + mainLineBranchLength + d.x) / 2;
-            return `M${mainNode.x + mainLineBranchLength},${mainNode.y} C${midX},${mainNode.y} ${midX},${d.y} ${d.x},${d.y}`;
+    svg.append("g")
+        .selectAll("rect")
+        .data(sankeyNodes)
+        .enter().append("rect")
+        .attr("x", d => d.x0)
+        .attr("y", d => d.y0)
+        .attr("width", d => d.x1 - d.x0)
+        .attr("height", d => d.y1 - d.y0)
+        .style("fill", "#00f")
+        .style("stroke", "#000")
+        .on("mouseover", function(event, d) {
+            d3.selectAll("path").style("opacity", l => l.source === d || l.target === d ? 1 : 0.1);
         })
-        .attr("stroke-width", d => (d.examples / maxExamples) * mainLineWidth)
-        .attr("stroke", "gray")
-        .attr("fill", "none")
-        .attr("opacity", 0.7);
+        .on("mouseout", function() {
+            d3.selectAll("path").style("opacity", 1);
+        });
 
-    svg.selectAll("line.connected")
-        .transition()
-        .duration(1000)
-        .attr("x1", d => mainNode.x + mainLineBranchLength)
-        .attr("y1", d => mainNode.y - (mainLineWidth / 2) + (d.examples / totalExamples) * mainLineWidth / 2);
+    svg.append("g")
+        .selectAll("path")
+        .data(sankeyLinks)
+        .enter().append("path")
+        .attr("d", d => `
+            M${d.source.x1},${d.source.y1}
+            L${d.target.x0},${d.target.y0}
+            L${d.target.x1},${d.target.y1}
+            L${d.source.x0},${d.source.y0}
+            Z
+        `)
+        .style("fill", "none")
+        .style("stroke", "#000")
+        .style("stroke-width", d => Math.max(1, d.width))
+        .style("opacity", 0.5);
 }
+
+// Toggle between overview and Sankey diagram
+d3.select("#toggleButton").on("click", function() {
+            const overviewVisible = d3.select("#overviewGraph").style("display") !== "none";
+            if (overviewVisible) {
+                d3.select("#overviewGraph").style("display", "none");
+                d3.select("#sankeyGraph").style("display", "block");
+                drawSankeyDiagram();
+                d3.select("#toggleButton").text("Switch to Overview Bubbles");
+            } else {
+                d3.select("#sankeyGraph").style("display", "none");
+                d3.select("#overviewGraph").style("display", "block");
+                d3.select("#toggleButton").text("Switch to Sankey Diagram");
+            }
+        });
 
 
 function showLanguageSpecificData(selectedLang) {
