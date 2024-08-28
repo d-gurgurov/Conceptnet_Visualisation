@@ -98,6 +98,7 @@
     </style>
     <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
+
 <body>
     <div id="mainContainer">
         <div id="overviewGraph"></div>
@@ -113,8 +114,8 @@
         </div>
     </div>
 
-
 <script>
+
 const languageData = {
     "ab": {
         "num_triples": 470,
@@ -16982,6 +16983,7 @@ const languageData = {
     }
 };
 
+
 function createOverviewGraph() {
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -17452,12 +17454,13 @@ function createPlots(langData, langName) {
     plotsContainer.appendChild(triplesDiv);
 
     // Create and append the plots
-    createBarChart(plotsContainer, langData.unique_relationships, "Unique Relationships", baseWidth, baseHeight, margin);
-    createBarChart(plotsContainer, langData.connected_languages, "Connected Languages", baseWidth, baseHeight, margin);
+    createBarChart(plotsContainer, langData.unique_relationships, "", baseWidth, baseHeight, margin);
+    createBarChart(plotsContainer, langData.connected_languages, "", baseWidth, baseHeight, margin);
 
     // Adjust the height of the container to fit all plots
-    plotsContainer.style.height = `${(baseHeight + margin.top + margin.bottom) * 2}px`; // Ensure space for all plots
+    plotsContainer.style.height = `${(baseHeight + margin.top + margin.bottom) * 2.2}px`; // Ensure space for all plots
 }
+
 
 function createBarChart(container, data, title, baseWidth, baseHeight, margin) {
     // Convert data to an array of objects and sort it by value in descending order
@@ -17466,7 +17469,7 @@ function createBarChart(container, data, title, baseWidth, baseHeight, margin) {
         .sort((a, b) => b.value - a.value); // Sort by value in descending order
 
     // Compute the width based on the number of bars
-    const width = Math.max(baseWidth, dataEntries.length * 60);  // Ensure enough width for all bars
+    const width = Math.max(baseWidth, dataEntries.length * 20);  // Ensure enough width for all bars
     const height = baseHeight;
 
     const svg = d3.select(container).append("svg")
@@ -17702,6 +17705,7 @@ function createGraph(langData, langName) {
     return container;
 }
 
+
 function showLanguageSpecificData(selectedLang) {
     if (selectedLang) {
         const langData = languageData[selectedLang];
@@ -17715,21 +17719,36 @@ function showLanguageSpecificData(selectedLang) {
     }
 }
 
+
 // Populate the language dropdown
-const languageSelect = document.getElementById("languageSelect");
-for (const lang in languageData) {
-    const option = document.createElement("option");
-    option.value = lang;
-    option.textContent = lang;
-    languageSelect.appendChild(option);
+function populateLanguageDropdown() {
+    const languageSelect = document.getElementById("languageSelect");
+    
+    // Create an array of objects with language code and full name
+    const languageOptions = Object.entries(languageData).map(([code, name]) => ({
+        code,
+        fullName: getFullLanguageName(code)
+    }));
+    
+    // Sort the array alphabetically by full name
+    languageOptions.sort((a, b) => a.fullName.localeCompare(b.fullName));
+    
+    // Create and append options to the select element
+    languageOptions.forEach(lang => {
+        const option = document.createElement("option");
+        option.value = lang.code;
+        option.textContent = `${lang.fullName} [${lang.code}]`;
+        languageSelect.appendChild(option);
+    });
 }
 
-languageSelect.addEventListener("change", function() {
-    showLanguageSpecificData(this.value);
-});
+// Call the function to populate the dropdown
+populateLanguageDropdown();
+
 
 // Initialize the page
 createOverviewGraph();
+
 
 // Add event listener for the back button
 document.getElementById("backButton").addEventListener("click", () => {
